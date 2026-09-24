@@ -128,6 +128,8 @@ WidgetButton {
     horizontalMargin: 8.75
     verticalPadding: 8.75
 
+    Component.onCompleted: console.log("WidgetButton completed, text:", text, "visible:", visible, "opacity:", opacity, "hasVisualContent:", hasVisualContent)
+
     onPressed: function(b) {
       if (b === Qt.RightButton) root.refresh()
       else root.togglePanel()
