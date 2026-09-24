@@ -217,29 +217,29 @@ Panel {
             spacing: Style.space(4)
             width: parent.width
 
-            Repeater {
+Repeater {
               model: root.tabs
+              required property int index
+              required property string modelData
 
               Item {
-                required property int index
-                required property string modelData
                 width: Style.space(80)
                 height: Style.space(30)
                 MouseArea {
-                   anchors.fill: parent
-                   hoverEnabled: true
-                   cursorShape: Qt.PointingHandCursor
-                   onClicked: root.selectedTab = index
-                   Text {
-                     anchors.centerIn: parent
-                     text: modelData
-                     color: root.selectedTab === index ? Color.accent : root.contentForeground
-                     font.family: root.contentFontFamily
-                     font.pixelSize: Style.font.bodySmall
-                     font.bold: root.selectedTab === index
-                   }
-                 }
-               }
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.selectedTab = index
+                    Text {
+                      anchors.centerIn: parent
+                      text: modelData
+                      color: root.selectedTab === index ? Color.accent : root.contentForeground
+                      font.family: root.contentFontFamily
+                      font.pixelSize: Style.font.bodySmall
+                      font.bold: root.selectedTab === index
+                    }
+                  }
+                }
             }
           }
 
