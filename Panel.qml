@@ -221,8 +221,6 @@ Repeater {
               model: root.tabs
 
               Item {
-                required property var modelData
-                required property int index
                 width: Style.space(80)
                 height: Style.space(30)
                 MouseArea {
