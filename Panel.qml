@@ -43,19 +43,23 @@ Panel {
 
   function open() {
     DataStore.ensureStarted(processBridge)
-    DataStore.getCategories(function(result) {
-      if (result && result.status === "ok" && result.result && result.result.categories)
-        categories = result.result.categories
-    })
-    DataStore.getMonthlySummary(currentYear, currentMonth, function(result) {
-      if (result && result.status === "ok" && result.result) {
-        currentSummary = result.result.budget
-        cashFlowData = result.result.cash_flow
+    DataStore.init(function(result) {
+      if (result && result.status === "ok") {
+        DataStore.getCategories(function(cats) {
+          if (cats && cats.status === "ok" && cats.result && cats.result.categories)
+            categories = cats.result.categories
+        })
+        DataStore.getMonthlySummary(currentYear, currentMonth, function(summary) {
+          if (summary && summary.status === "ok" && summary.result) {
+            currentSummary = summary.result.budget
+            cashFlowData = summary.result.cash_flow
+          }
+        })
+        DataStore.getNetWorth(function(nw) {
+          if (nw && nw.status === "ok" && nw.result)
+            netWorthData = nw.result
+        })
       }
-    })
-    DataStore.getNetWorth(function(result) {
-      if (result && result.status === "ok" && result.result)
-        netWorthData = result.result
     })
     root.controller.show()
     Qt.callLater(function() { if (root.opened) setCenterHoverRevealSuppressed(true) })
@@ -142,6 +146,7 @@ Panel {
   Process {
     id: processBridge
     command: [bridgePath]
+    running: true
     stdinEnabled: true
 
     stdout: SplitParser {
@@ -158,7 +163,9 @@ Panel {
     }
   }
 
-  readonly property string bridgePath: "../../config/omarchy/plugins/omabudget/bin/omabudget-bridge"
+  readonly property string bridgePath: "/home/lgw/.config/omarchy/plugins/omabudget/bin/omabudget-bridge"
+
+  readonly property bool bridgeWorking: Qt.fileExists(bridgePath)
 
   readonly property int barIndicatorHeight: Math.max(Style.space(10), Math.round(Style.bar.iconSlot * 0.55))
 
@@ -216,14 +223,24 @@ Panel {
               required property int index
               required property string modelData
 
-              PanelActionButton {
-                text: modelData
-                foreground: root.selectedTab === index ? Color.accent : root.contentForeground
-                fontFamily: root.contentFontFamily
-                font.pixelSize: Style.font.bodySmall
-                font.bold: root.selectedTab === index
-                onClicked: root.selectedTab = index
-              }
+Item {
+                 width: Style.space(80)
+                 height: Style.space(30)
+                 MouseArea {
+                   anchors.fill: parent
+                   hoverEnabled: true
+                   cursorShape: Qt.PointingHandCursor
+                   onClicked: root.selectedTab = index
+                   Text {
+                     anchors.centerIn: parent
+                     text: modelData
+                     color: root.selectedTab === index ? Color.accent : root.contentForeground
+                     font.family: root.contentFontFamily
+                     font.pixelSize: Style.font.bodySmall
+                     font.bold: root.selectedTab === index
+                   }
+                 }
+               }
             }
           }
 
@@ -566,10 +583,11 @@ Panel {
               width: parent.width
               spacing: Style.space(4)
 
-              PanelActionButton {
+              Button {
                 text: "Add"
                 foreground: root.contentForeground
                 fontFamily: root.contentFontFamily
+                enabled: true
                 onClicked: {
                   var type = txAmount.value >= 0 ? "income" : "expense"
                   DataStore.addTransaction({
@@ -589,7 +607,7 @@ Panel {
                 }
               }
 
-              PanelActionButton {
+              Button {
                 text: "Cancel"
                 foreground: root.contentForeground
                 fontFamily: root.contentFontFamily
@@ -813,7 +831,7 @@ Panel {
 
         PanelSeparator { foreground: root.contentForeground }
 
-        PanelActionButton {
+        Button {
           text: "Run Simulation"
           foreground: root.contentForeground
           fontFamily: root.contentFontFamily
