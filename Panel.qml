@@ -390,7 +390,7 @@ Repeater {
               spacing: Style.space(8)
 
               Text { textFormat: Text.PlainText; text: "Net Worth: "; color: Qt.darker(root.contentForeground, 1.4); font.family: root.contentFontFamily; font.pixelSize: Style.font.bodySmall }
-              Text { textFormat: Text.PlainText; text: Model.formatCurrency(netWorthData.net_worth !== undefined ? netWorthData.net_worth : 0); color: netWorthData.net_worth >= 0 ? "#10B981" : "#EF4444"; font.family: root.contentFontFamily; font.pixelSize: Style.font.bodyLarge; font.bold: true }
+              Text { textFormat: Text.PlainText; text: Model.formatCurrency(netWorthData.net_worth !== undefined ? netWorthData.net_worth : 0); color: netWorthData.net_worth >= 0 ? "#10B981" : "#EF4444"; font.family: root.contentFontFamily; font.pixelSize: Style.font.display; font.bold: true }
             }
           }
         }
