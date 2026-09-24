@@ -20,6 +20,7 @@ BarWidget {
   property var cashFlow: ({totalIncome: 0, totalExpenses: 0})
 
   function refresh() {
+    console.log("refresh called")
     DataStore.getMonthlySummary(new Date().getFullYear(), new Date().getMonth() + 1, function(result) {
       if (result && result.status === "ok" && result.result) {
         currentSummary = result.result.budget
@@ -46,6 +47,7 @@ BarWidget {
   }
 
   function togglePanel() {
+    console.log("togglePanel called")
     root.toggle()
   }
 
@@ -120,7 +122,7 @@ BarWidget {
     function toggle(): void { root.toggle() }
   }
 
-WidgetButton {
+  WidgetButton {
     id: button
     anchors.fill: parent
     bar: root.bar
@@ -135,6 +137,7 @@ WidgetButton {
     Component.onCompleted: console.log("WidgetButton completed, text:", text, "visible:", visible, "opacity:", opacity, "hasVisualContent:", hasVisualContent)
 
     onPressed: function(b) {
+      console.log("onPressed called:", b)
       if (b === Qt.RightButton) root.refresh()
       else root.togglePanel()
     }
