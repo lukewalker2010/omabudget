@@ -114,7 +114,7 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.vertical ? "" : (Model.formatCurrency(currentSummary.totalSpent) + " / " + Model.formatCurrency(currentSummary.totalBudget))
+    text: "Budget"
     labelVisible: !root.vertical
     hasVisualContent: text !== ""
     horizontalMargin: 8.75
