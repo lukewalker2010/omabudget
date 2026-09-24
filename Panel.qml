@@ -165,7 +165,7 @@ Panel {
 
   readonly property string bridgePath: "/home/lgw/.config/omarchy/plugins/omabudget/bin/omabudget-bridge"
 
-  readonly property bool bridgeWorking: Qt.fileExists(bridgePath)
+  readonly property bool bridgeWorking: true
 
   readonly property int barIndicatorHeight: Math.max(Style.space(10), Math.round(Style.bar.iconSlot * 0.55))
 
@@ -247,7 +247,7 @@ Repeater {
           Loader {
             id: tabLoader
             width: parent.width
-            source: {
+            sourceComponent: {
               if (root.selectedTab === 0) overviewComponent
               else if (root.selectedTab === 1) transactionsComponent
               else if (root.selectedTab === 2) projectionsComponent
