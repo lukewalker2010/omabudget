@@ -315,7 +315,7 @@ Repeater {
           height: Style.space(20)
           PanelSlider {
             anchors.fill: parent
-            value: Model.calculatePercent(currentSummary.totalSpent, currentSummary.totalBudget) / 100
+            value: currentSummary.totalBudget > 0 ? Math.min(1, Math.max(0, Model.calculatePercent(currentSummary.totalSpent, currentSummary.totalBudget) / 100)) : 0
             minimum: 0
             maximum: 1
             trackColor: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.12)
