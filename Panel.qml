@@ -220,13 +220,12 @@ Panel {
             Repeater {
               model: root.tabs
 
-              required property int index
-              required property string modelData
-
-Item {
-                 width: Style.space(80)
-                 height: Style.space(30)
-                 MouseArea {
+              Item {
+                required property int index
+                required property string modelData
+                width: Style.space(80)
+                height: Style.space(30)
+                MouseArea {
                    anchors.fill: parent
                    hoverEnabled: true
                    cursorShape: Qt.PointingHandCursor
