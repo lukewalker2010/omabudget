@@ -76,6 +76,10 @@ BarWidget {
       root.injectPanel()
       Qt.callLater(root.injectPanel)
     }
+    onStatusChanged: {
+      if (status === Loader.Error)
+        console.warn("PanelLoader error:", errorString)
+    }
   }
 
   // Bridge process starts here so it's available before the panel loads
