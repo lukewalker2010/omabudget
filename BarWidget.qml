@@ -125,7 +125,12 @@ BarWidget {
     horizontalMargin: 8.75
     verticalPadding: 8.75
     Component.onCompleted: console.log("WidgetButton bar:", bar, "pressable:", pressable, "interactive:", interactive)
-    onPressed: function(b) {
+  }
+
+  Connections {
+    target: button
+    function onPressed(b) {
+      console.log("Connections onPressed:", b)
       if (b === Qt.RightButton) root.refresh()
       else root.togglePanel()
     }
