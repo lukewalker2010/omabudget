@@ -219,10 +219,10 @@ Panel {
 
 Repeater {
               model: root.tabs
-              required property int index
-              required property string modelData
 
               Item {
+                required property var modelData
+                required property int index
                 width: Style.space(80)
                 height: Style.space(30)
                 MouseArea {
@@ -240,7 +240,7 @@ Repeater {
                     }
                   }
                 }
-            }
+              }
           }
 
           PanelSeparator { foreground: root.contentForeground }
