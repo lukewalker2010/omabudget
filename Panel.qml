@@ -41,24 +41,6 @@ Panel {
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
 
   function open() {
-    DataStore.init(function(result) {
-      if (result && result.status === "ok") {
-        DataStore.getCategories(function(cats) {
-          if (cats && cats.status === "ok" && cats.result && cats.result.categories)
-            categories = cats.result.categories
-        })
-        DataStore.getMonthlySummary(currentYear, currentMonth, function(summary) {
-          if (summary && summary.status === "ok" && summary.result) {
-            currentSummary = summary.result.budget
-            cashFlowData = summary.result.cash_flow
-          }
-        })
-        DataStore.getNetWorth(function(nw) {
-          if (nw && nw.status === "ok" && nw.result)
-            netWorthData = nw.result
-        })
-      }
-    })
     root.controller.show()
     Qt.callLater(function() { if (root.opened) setCenterHoverRevealSuppressed(true) })
   }
