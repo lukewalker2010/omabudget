@@ -426,8 +426,6 @@ Repeater {
         Repeater {
           model: categories
 
-          required property int index
-          required property var modelData
 
           Item {
             width: parent.width
@@ -630,8 +628,6 @@ Repeater {
               Repeater {
                 model: transactions
 
-                required property int index
-                required property var modelData
 
                 Item {
                   width: parent.width
@@ -973,8 +969,6 @@ Repeater {
         Repeater {
           model: categories
 
-          required property int index
-          required property var modelData
 
           Item {
             width: parent.width
@@ -1068,8 +1062,6 @@ Repeater {
           id: accountList
           model: []
 
-          required property int index
-          required property var modelData
 
           Item {
             width: parent.width
