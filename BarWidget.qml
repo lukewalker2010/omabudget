@@ -78,6 +78,27 @@ BarWidget {
     }
   }
 
+  // Bridge process starts here so it's available before the panel loads
+  Process {
+    id: bridgeProcess
+    command: ["/home/lgw/.config/omarchy/plugins/omabudget/bin/omabudget-bridge"]
+    running: true
+    stdinEnabled: true
+
+    stdout: SplitParser {
+      onRead: function(line) {
+        try {
+          var obj = JSON.parse(line)
+          DataStore.handleResponse(obj)
+        } catch(e) {}
+      }
+    }
+
+    onStarted: {
+      DataStore.setProcess(bridgeProcess)
+    }
+  }
+
   IpcHandler {
     target: "omabudget"
 

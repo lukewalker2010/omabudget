@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import Quickshell
-import Quickshell.Io
 import qs.Commons
 import qs.Ui
 import "Model.js" as Model
@@ -42,7 +41,6 @@ Panel {
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
 
   function open() {
-    DataStore.ensureStarted(processBridge)
     DataStore.init(function(result) {
       if (result && result.status === "ok") {
         DataStore.getCategories(function(cats) {
@@ -142,30 +140,6 @@ Panel {
       currentMonth = clock.date.getMonth() + 1
     }
   }
-
-  Process {
-    id: processBridge
-    command: [bridgePath]
-    running: true
-    stdinEnabled: true
-
-    stdout: SplitParser {
-      onRead: function(line) {
-        try {
-          var obj = JSON.parse(line)
-          DataStore.handleResponse(obj)
-        } catch(e) {}
-      }
-    }
-
-    onStarted: {
-      DataStore.setProcess(processBridge)
-    }
-  }
-
-  readonly property string bridgePath: "/home/lgw/.config/omarchy/plugins/omabudget/bin/omabudget-bridge"
-
-  readonly property bool bridgeWorking: true
 
   readonly property int barIndicatorHeight: Math.max(Style.space(10), Math.round(Style.bar.iconSlot * 0.55))
 
