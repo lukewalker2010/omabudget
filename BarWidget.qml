@@ -125,7 +125,7 @@ BarWidget {
     verticalPadding: 8.75
 
 onPressed: function(b) {
-        console.warn("WidgetButton clicked:", b)
+        console.log("WidgetButton pressed:", b)
         if (b === Qt.RightButton) root.refresh()
         else root.togglePanel()
     }
