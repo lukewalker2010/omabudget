@@ -1,0 +1,8 @@
+module omabudget
+pluginURI omabudget
+classname omabudget
+type library
+depends QtQuick 2.15
+depends Quickshell 1.0
+depends qs.Commons 1.0
+depends qs.Ui 1.0

@@ -1,0 +1,12 @@
+*.db
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.pyo
+.DS_Store
+**/__pycache__/
+*.egg-info/
+dist/
+build/
+*.pyc

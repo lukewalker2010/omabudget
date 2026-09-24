@@ -1,0 +1,255 @@
+#!/usr/bin/env python3
+"""NDJSON bridge between QML and the omabudget backend.
+
+QML writes JSON lines to stdin; this process reads them, dispatches
+commands, and writes JSON lines to stdout. Each line is a complete
+JSON object. Responses have status, result, and error_msg fields.
+"""
+
+import json
+import os
+import sys
+from datetime import datetime
+from typing import Any, Optional
+
+sys.dont_write_bytecode = True
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LIB_DIR = os.path.join(PROJECT_ROOT, "lib")
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+if LIB_DIR not in sys.path:
+    sys.path.insert(0, LIB_DIR)
+
+from lib.database import (
+    init_db, add_transaction, get_transactions, get_monthly_spending,
+    get_category_breakdown, add_category, get_categories, add_account,
+    get_accounts, update_profile, get_profile, set_budget_limit
+)
+from lib.calculations import (
+    calculate_monthly_budget, calculate_net_worth,
+    calculate_monthly_cash_flow, calculate_category_progress
+)
+from lib.monte_carlo import run_simulation, calculate_projection
+from lib.statements import parse_csv, parse_pdf, parse_image
+from lib.honestmath import get_rate_of_return, calculate_projection as hp_calc
+
+
+def emit(obj: dict[str, Any]) -> None:
+    """Write a JSON line to stdout and flush."""
+    line = json.dumps(obj, ensure_ascii=False)
+    sys.stdout.write(line + "\n")
+    sys.stdout.flush()
+
+
+def response(status: str, result: Any = None, error_msg: Optional[str] = None) -> dict[str, Any]:
+    """Build a standard response dict."""
+    return {"status": status, "result": result, "error_msg": error_msg}
+
+
+def handle_init_db(command: dict) -> dict:
+    try:
+        init_db()
+        return response("ok", {"initialized": True})
+    except Exception as e:
+        return response("error", None, str(e))
+
+
+def handle_add_transaction(command: dict) -> dict:
+    try:
+        tx = command["params"]
+        add_transaction(
+            tx.get("id", f"tx_{datetime.now().timestamp()}"),
+            tx.get("category_id", ""),
+            tx.get("account_id", ""),
+            tx.get("amount", 0),
+            tx.get("date", ""),
+            tx.get("description", ""),
+            tx.get("type", "expense"),
+            tx.get("source", "manual"),
+            tx.get("raw_data", ""),
+        )
+        return response("ok", {"added": True})
+    except Exception as e:
+        return response("error", None, str(e))
+
+
+def handle_get_transactions(command: dict) -> dict:
+    try:
+        filters = command.get("params", {}).get("filters", {})
+        txs = get_transactions(filters)
+        return response("ok", {"transactions": txs})
+    except Exception as e:
+        return response("error", None, str(e))
+
+
+def handle_get_monthly_summary(command: dict) -> dict:
+    try:
+        params = command.get("params", {})
+        year = params.get("year", datetime.now().year)
+        month = params.get("month", datetime.now().month)
+
+        budget = calculate_monthly_budget(year, month)
+        cash_flow = calculate_monthly_cash_flow(year, month)
+        progress = calculate_category_progress(year, month)
+
+        return response("ok", {
+            "budget": budget,
+            "cash_flow": cash_flow,
+            "category_progress": progress,
+        })
+    except Exception as e:
+        return response("error", None, str(e))
+
+
+def handle_get_net_worth(command: dict) -> dict:
+    try:
+        nw = calculate_net_worth()
+        return response("ok", nw)
+    except Exception as e:
+        return response("error", None, str(e))
+
+
+def handle_get_projections(command: dict) -> dict:
+    try:
+        params = command.get("params", {})
+        profile = params.get("profile", {})
+        portfolio = params.get("portfolio", {})
+        num_sims = params.get("num_simulations", 10000)
+        result = run_simulation(profile, portfolio, num_sims)
+        return response("ok", result)
+    except Exception as e:
+        return response("error", None, str(e))
+
+
+def handle_parse_statement(command: dict) -> dict:
+    try:
+        params = command.get("params", {})
+        filepath = params.get("filepath", "")
+        file_type = params.get("file_type", "")
+
+        if file_type == "csv":
+            transactions = parse_csv(filepath)
+        elif file_type == "pdf":
+            transactions = parse_pdf(filepath)
+        elif file_type == "image":
+            transactions = parse_image(filepath)
+        else:
+            return response("error", None, f"Unknown file type: {file_type}")
+
+        return response("ok", {"transactions": transactions})
+    except Exception as e:
+        return response("error", None, str(e))
+
+
+def handle_get_categories(command: dict) -> dict:
+    try:
+        cats = get_categories()
+        return response("ok", {"categories": cats})
+    except Exception as e:
+        return response("error", None, str(e))
+
+
+def handle_add_category(command: dict) -> dict:
+    try:
+        params = command.get("params", {})
+        add_category(
+            params.get("id", ""),
+            params.get("name", ""),
+            params.get("icon", ""),
+            params.get("type", "expense"),
+            params.get("budget_limit", 0),
+            params.get("color", "#888888"),
+            params.get("is_predefined", False),
+        )
+        return response("ok", {"added": True})
+    except Exception as e:
+        return response("error", None, str(e))
+
+
+def handle_get_profile(command: dict) -> dict:
+    try:
+        params = command.get("params", {})
+        key = params.get("key")
+        if key:
+            value = get_profile(key)
+            return response("ok", {key: value})
+        else:
+            keys = ["age", "retirement_age", "household_size", "income", "house_value"]
+            profile = {k: get_profile(k) for k in keys}
+            return response("ok", {"profile": profile})
+    except Exception as e:
+        return response("error", None, str(e))
+
+
+def handle_update_profile(command: dict) -> dict:
+    try:
+        params = command.get("params", {})
+        update_profile(params.get("key", ""), params.get("value", ""))
+        return response("ok", {"updated": True})
+    except Exception as e:
+        return response("error", None, str(e))
+
+
+def handle_get_cash_flow(command: dict) -> dict:
+    try:
+        params = command.get("params", {})
+        year = params.get("year", datetime.now().year)
+        month = params.get("month", datetime.now().month)
+        cf = calculate_monthly_cash_flow(year, month)
+        return response("ok", cf)
+    except Exception as e:
+        return response("error", None, str(e))
+
+
+COMMANDS: dict[str, callable] = {
+    "init_db": handle_init_db,
+    "add_transaction": handle_add_transaction,
+    "get_transactions": handle_get_transactions,
+    "get_monthly_summary": handle_get_monthly_summary,
+    "get_net_worth": handle_get_net_worth,
+    "get_projections": handle_get_projections,
+    "parse_statement": handle_parse_statement,
+    "get_categories": handle_get_categories,
+    "add_category": handle_add_category,
+    "get_profile": handle_get_profile,
+    "update_profile": handle_update_profile,
+    "get_cash_flow": handle_get_cash_flow,
+}
+
+
+def main() -> None:
+    """Main NDJSON bridge loop."""
+    for raw_line in sys.stdin:
+        raw_line = raw_line.strip()
+        if not raw_line:
+            continue
+        try:
+            command = json.loads(raw_line)
+        except json.JSONDecodeError:
+            emit(response("error", None, "Invalid JSON"))
+            continue
+
+        if not isinstance(command, dict):
+            emit(response("error", None, "Command must be a JSON object"))
+            continue
+
+        op = command.get("op")
+        if not op:
+            emit(response("error", None, "Missing op field"))
+            continue
+
+        handler = COMMANDS.get(op)
+        if handler is None:
+            emit(response("error", None, f"Unknown command: {op}"))
+            continue
+
+        try:
+            result = handler(command)
+            emit(result)
+        except Exception as e:
+            emit(response("error", None, str(e)))
+
+
+if __name__ == "__main__":
+    main()
