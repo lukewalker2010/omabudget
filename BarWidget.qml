@@ -10,6 +10,8 @@ BarWidget {
   id: root
   moduleName: "omabudget"
 
+  Component.onCompleted: console.log("BarWidget completed:", moduleName, "bar:", bar)
+
   property var currentSummary: ({totalBudget: 0, totalSpent: 0, remaining: 0})
   property var cashFlow: ({totalIncome: 0, totalExpenses: 0})
 
