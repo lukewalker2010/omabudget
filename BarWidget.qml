@@ -10,17 +10,10 @@ BarWidget {
   id: root
   moduleName: "omabudget"
 
-  Component.onCompleted: {
-      console.log("BarWidget completed:", moduleName)
-      if (button) console.log("Button exists:", button.text, button.visible, button.opacity, button.implicitWidth, button.implicitHeight)
-      else console.log("Button is null!")
-    }
-
   property var currentSummary: ({totalBudget: 0, totalSpent: 0, remaining: 0})
   property var cashFlow: ({totalIncome: 0, totalExpenses: 0})
 
   function refresh() {
-    console.log("refresh called")
     DataStore.getMonthlySummary(new Date().getFullYear(), new Date().getMonth() + 1, function(result) {
       if (result && result.status === "ok" && result.result) {
         currentSummary = result.result.budget
@@ -47,7 +40,6 @@ BarWidget {
   }
 
   function togglePanel() {
-    console.log("togglePanel called")
     root.toggle()
   }
 
@@ -90,7 +82,6 @@ BarWidget {
     }
   }
 
-  // Bridge process starts here so it's available before the panel loads
   Process {
     id: bridgeProcess
     command: ["/home/lgw/.config/omarchy/plugins/omabudget/bin/omabudget-bridge"]
@@ -133,13 +124,9 @@ BarWidget {
     pressable: true
     horizontalMargin: 8.75
     verticalPadding: 8.75
-  }
-
-  MouseArea {
-    id: testArea
-    anchors.fill: button
-    enabled: true
-    hoverEnabled: true
-    onClicked: function(mouse) { console.log("BarWidget MouseArea clicked:", mouse.button) }
+    onPressed: function(b) {
+      if (b === Qt.RightButton) root.refresh()
+      else root.togglePanel()
+    }
   }
 }
