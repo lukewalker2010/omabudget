@@ -116,20 +116,21 @@ BarWidget {
     function toggle(): void { root.toggle() }
   }
 
-  WidgetButton {
+WidgetButton {
     id: button
     anchors.fill: parent
     bar: root.bar
     text: "Budget"
     labelVisible: !root.vertical
     hasVisualContent: text !== ""
+    interactive: true
+    pressable: true
     horizontalMargin: 8.75
     verticalPadding: 8.75
 
-onPressed: function(b) {
-        console.log("WidgetButton pressed:", b)
-        if (b === Qt.RightButton) root.refresh()
-        else root.togglePanel()
+    onPressed: function(b) {
+      if (b === Qt.RightButton) root.refresh()
+      else root.togglePanel()
     }
   }
 }
