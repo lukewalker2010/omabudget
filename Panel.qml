@@ -535,7 +535,6 @@ Item {
               placeholderText: "Description"
               foreground: root.contentForeground
               accent: Color.accent
-              fontFamily: root.contentFontFamily
             }
 
             NumberField {
@@ -574,8 +573,6 @@ Item {
                 width: parent.width * 0.4
                 placeholderText: "Date"
                 foreground: root.contentForeground
-                accent: Color.accent
-                fontFamily: root.contentFontFamily
               }
             }
 
@@ -1032,8 +1029,6 @@ Item {
             width: parent.width * 0.5
             placeholderText: "Category name"
             foreground: root.contentForeground
-            accent: Color.accent
-            fontFamily: root.contentFontFamily
           }
 
           TextField {
@@ -1041,8 +1036,6 @@ Item {
             width: parent.width * 0.3
             placeholderText: "Budget"
             foreground: root.contentForeground
-            accent: Color.accent
-            fontFamily: root.contentFontFamily
             inputMethodHints: Qt.ImhDigitsOnly
           }
 
@@ -1109,8 +1102,6 @@ Item {
             width: Style.space(60)
             text: "$"
             foreground: root.contentForeground
-            accent: Color.accent
-            fontFamily: root.contentFontFamily
           }
         }
       }
