@@ -12,7 +12,7 @@ BarWidget {
 
   Component.onCompleted: {
       console.log("BarWidget completed:", moduleName)
-      if (button) console.log("Button exists:", button.text, button.visible, button.opacity)
+      if (button) console.log("Button exists:", button.text, button.visible, button.opacity, button.implicitWidth, button.implicitHeight)
       else console.log("Button is null!")
     }
 
