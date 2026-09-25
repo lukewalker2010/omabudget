@@ -28,6 +28,8 @@ Panel {
   property var portfolio: ({cash: 0.1, bonds: 0.2, stocks: 0.7})
   property var projectionResult: ({probabilityOfSuccess: 0, medianPortfolioAtRetirement: 0, worstCase: 0, bestCase: 0})
   property bool simulationRunning: false
+  property string projectionError: ""
+  property string importStatus: ""
   property bool addFormVisible: false
 
   property date currentDate: new Date()
@@ -40,6 +42,7 @@ Panel {
 
   function open() {
     root.controller.show()
+    loadData()
     Qt.callLater(function() { if (root.opened) setCenterHoverRevealSuppressed(true) })
   }
 
@@ -67,7 +70,27 @@ Panel {
   }
 
   function refresh() {
+    loadData()
     open()
+  }
+
+  function loadData() {
+    DataStore.getCategories(function(result) {
+      if (result && result.status === "ok" && result.result && result.result.categories)
+        categories = result.result.categories
+    })
+    DataStore.getTransactions({}, function(result) {
+      if (result && result.status === "ok" && result.result && result.result.transactions)
+        transactions = result.result.transactions
+    })
+    DataStore.getNetWorth(function(result) {
+      if (result && result.status === "ok" && result.result)
+        netWorthData = result.result
+    })
+    DataStore.getCashFlow(new Date().getFullYear(), new Date().getMonth() + 1, function(result) {
+      if (result && result.status === "ok" && result.result)
+        cashFlowData = result.result
+    })
   }
 
   function setCurrentTab(index) {
@@ -82,11 +105,75 @@ Panel {
 
   function runSimulation() {
     simulationRunning = true
-    DataStore.getProjections(profile, portfolio, 10000, function(result) {
+    projectionError = ""
+    var p = {
+      age: Number(profileAge.value) || 30,
+      retirement_age: Number(profileRetirementAge.value) || 65,
+      household_size: 1,
+      income: Number(profileIncome.value) || 0,
+      house_value: Number(profileHouseValue.value) || 0
+    }
+    var alloc = {
+      cash: Number(portfolio.cash) || 0,
+      bonds: Number(portfolio.bonds) || 0,
+      stocks: Number(portfolio.stocks) || 0
+    }
+    DataStore.getProjections(p, alloc, 10000, function(result) {
       if (result && result.status === "ok" && result.result) {
-        projectionResult = result.result
+        var r = result.result
+        projectionResult = {
+          probabilityOfSuccess: r.probability_of_success || 0,
+          medianPortfolioAtRetirement: r.median_portfolio_at_retirement || 0,
+          worstCase: r.worst_case || 0,
+          bestCase: r.best_case || 0,
+          successByAge: r.success_by_age || []
+        }
+      } else {
+        projectionError = (result && result.error_msg) ? String(result.error_msg) : "Simulation failed"
       }
       simulationRunning = false
+    })
+  }
+
+  function importStatement(path) {
+    var p = String(path || "").trim()
+    if (!p) {
+      importStatus = "Enter a file path first"
+      return
+    }
+    var lower = p.toLowerCase()
+    var ftype = lower.indexOf(".csv") === lower.length - 4 ? "csv"
+      : lower.indexOf(".pdf") === lower.length - 4 ? "pdf" : "image"
+    importStatus = "Parsing " + p + "..."
+    DataStore.parseStatement(p, ftype, function(result) {
+      if (!result || result.status !== "ok" || !result.result) {
+        importStatus = "Import failed: " + ((result && result.error_msg) ? result.error_msg : "unknown error")
+        return
+      }
+      var parsed = result.result
+      if (!parsed || !parsed.length) {
+        importStatus = "No transactions found in file"
+        return
+      }
+      var imported = 0
+      parsed.forEach(function(t, i) {
+        DataStore.addTransaction({
+          id: "tx_" + Date.now() + "_" + i,
+          category_id: "",
+          account_id: "",
+          amount: t.amount,
+          date: t.date || "",
+          description: t.description || "",
+          type: t.type || "expense",
+          source: t.source || "statement"
+        }, function(addResult) {
+          if (addResult && addResult.status === "ok") imported++
+          if (i === parsed.length - 1) {
+            importStatus = "Imported " + imported + " of " + parsed.length + " transactions"
+            loadData()
+          }
+        })
+      })
     })
   }
 
@@ -555,6 +642,39 @@ Repeater {
           }
         }
 
+        PanelSeparator { foreground: root.contentForeground }
+
+        Row {
+          width: parent.width
+          spacing: Style.space(4)
+
+          TextField {
+            id: importPathField
+            width: parent.width - Style.space(90)
+            placeholderText: "Path to statement file (.csv, .pdf, or image)"
+            foreground: root.contentForeground
+            accent: Color.accent
+          }
+
+          Button {
+            text: "Import"
+            foreground: root.contentForeground
+            fontFamily: root.contentFontFamily
+            onClicked: root.importStatement(importPathField.text)
+          }
+        }
+
+        Text {
+          width: parent.width
+          visible: importStatus !== ""
+          textFormat: Text.PlainText
+          text: importStatus
+          color: importStatus.indexOf("failed") !== -1 ? "#EF4444" : Qt.darker(root.contentForeground, 1.4)
+          font.family: root.contentFontFamily
+          font.pixelSize: Style.font.caption
+          wrapMode: Text.WrapAnywhere
+        }
+
         Item {
           width: parent.width
           height: Math.min(Style.space(300), transactionFlickable.implicitHeight)
@@ -775,6 +895,17 @@ Repeater {
           fontFamily: root.contentFontFamily
           enabled: !simulationRunning
           onClicked: root.runSimulation()
+        }
+
+        Text {
+          width: parent.width
+          visible: projectionError !== ""
+          textFormat: Text.PlainText
+          text: projectionError
+          color: "#EF4444"
+          font.family: root.contentFontFamily
+          font.pixelSize: Style.font.caption
+          wrapMode: Text.WrapAnywhere
         }
 
         Item {
