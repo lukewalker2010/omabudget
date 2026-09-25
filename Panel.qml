@@ -687,7 +687,7 @@ Repeater {
 
         Item {
           width: parent.width
-          height: Math.min(Style.space(300), transactionFlickable.implicitHeight)
+          height: Math.min(Style.space(300), transactionList.implicitHeight)
           clip: true
 
           Flickable {
@@ -695,6 +695,7 @@ Repeater {
             anchors.fill: parent
             clip: true
             boundsBehavior: Flickable.StopAtBounds
+            contentHeight: transactionList.implicitHeight
 
             Column {
               id: transactionList
