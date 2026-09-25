@@ -125,8 +125,13 @@ def handle_get_projections(command: dict) -> dict:
 def handle_parse_statement(command: dict) -> dict:
     try:
         params = command.get("params", {})
-        filepath = params.get("filepath", "")
+        filepath = os.path.expanduser(str(params.get("filepath", "")).strip())
         file_type = params.get("file_type", "")
+
+        if not filepath:
+            return response("error", None, "No file path provided")
+        if not os.path.isfile(filepath):
+            return response("error", None, f"File not found: {filepath}")
 
         if file_type == "csv":
             transactions = parse_csv(filepath)

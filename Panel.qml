@@ -142,15 +142,16 @@ Panel {
       return
     }
     var lower = p.toLowerCase()
-    var ftype = lower.indexOf(".csv") === lower.length - 4 ? "csv"
-      : lower.indexOf(".pdf") === lower.length - 4 ? "pdf" : "image"
+    var ftype = lower.endsWith(".csv") ? "csv" : lower.endsWith(".pdf") ? "pdf" : "image"
     importStatus = "Parsing " + p + "..."
+    importTimeout.restart()
     DataStore.parseStatement(p, ftype, function(result) {
+      importTimeout.stop()
       if (!result || result.status !== "ok" || !result.result) {
         importStatus = "Import failed: " + ((result && result.error_msg) ? result.error_msg : "unknown error")
         return
       }
-      var parsed = result.result
+      var parsed = (result.result && result.result.transactions) ? result.result.transactions : result.result
       if (!parsed || !parsed.length) {
         importStatus = "No transactions found in file"
         return
@@ -661,6 +662,15 @@ Repeater {
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             onClicked: root.importStatement(importPathField.text)
+          }
+        }
+
+        Timer {
+          id: importTimeout
+          interval: 30000
+          onTriggered: {
+            if (importStatus.indexOf("Parsing") === 0)
+              importStatus = "Import timed out - bridge did not respond. Try: omarchy restart shell"
           }
         }
 
