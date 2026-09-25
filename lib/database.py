@@ -17,6 +17,7 @@ def _get_connection() -> sqlite3.Connection:
 
 def init_db() -> None:
     """Initialize the database schema and seed predefined categories."""
+    os.chmod(DB_PATH, 0o600)
     conn = _get_connection()
     try:
         conn.execute("""
