@@ -115,6 +115,65 @@ def add_transaction(
         conn.close()
 
 
+def update_transaction(
+    tx_id: str,
+    amount: Optional[float] = None,
+    date: Optional[str] = None,
+    description: Optional[str] = None,
+    category_id: Optional[str] = None,
+    account_id: Optional[str] = None,
+    type: Optional[str] = None
+) -> None:
+    """Update mutable fields of an existing transaction. Only provided fields change."""
+    sets: list[str] = []
+    params: list[Any] = []
+    if amount is not None:
+        sets.append("amount = ?")
+        params.append(amount)
+    if date is not None:
+        sets.append("date = ?")
+        params.append(date)
+    if description is not None:
+        sets.append("description = ?")
+        params.append(description)
+    if category_id is not None:
+        sets.append("category_id = ?")
+        params.append(category_id)
+    if account_id is not None:
+        sets.append("account_id = ?")
+        params.append(account_id)
+    if type is not None:
+        if type not in ("expense", "income", "savings"):
+            raise ValueError(f"Invalid transaction type: {type}")
+        sets.append("type = ?")
+        params.append(type)
+    if not sets:
+        return
+    params.append(tx_id)
+    conn = _get_connection()
+    try:
+        cur = conn.execute(
+            f"UPDATE transactions SET {', '.join(sets)} WHERE id = ?", tuple(params)
+        )
+        if cur.rowcount == 0:
+            raise ValueError(f"Transaction not found: {tx_id}")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def delete_transaction(tx_id: str) -> None:
+    """Delete a transaction by id."""
+    conn = _get_connection()
+    try:
+        cur = conn.execute("DELETE FROM transactions WHERE id = ?", (tx_id,))
+        if cur.rowcount == 0:
+            raise ValueError(f"Transaction not found: {tx_id}")
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def get_transactions(filters: Optional[dict] = None) -> list[dict[str, Any]]:
     """Query transactions with optional filters."""
     conn = _get_connection()

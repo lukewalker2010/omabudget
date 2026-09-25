@@ -49,6 +49,16 @@ function addTransaction(tx, cb) {
   return _send({op: "add_transaction", params: tx}, cb)
 }
 
+function updateTransaction(id, fields, cb) {
+  var params = fields ? JSON.parse(JSON.stringify(fields)) : {}
+  params.id = id
+  return _send({op: "update_transaction", params: params}, cb)
+}
+
+function deleteTransaction(id, cb) {
+  return _send({op: "delete_transaction", params: {id: id}}, cb)
+}
+
 function getTransactions(filters, cb) {
   return _send({op: "get_transactions", params: {filters: filters}}, cb)
 }

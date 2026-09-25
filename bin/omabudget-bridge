@@ -24,7 +24,8 @@ if LIB_DIR not in sys.path:
 from lib.database import (
     init_db, add_transaction, get_transactions, get_monthly_spending,
     get_category_breakdown, add_category, get_categories, add_account,
-    get_accounts, update_profile, get_profile, set_budget_limit
+    get_accounts, update_profile, get_profile, set_budget_limit,
+    update_transaction, delete_transaction
 )
 from lib.calculations import (
     calculate_monthly_budget, calculate_net_worth,
@@ -70,6 +71,38 @@ def handle_add_transaction(command: dict) -> dict:
             tx.get("raw_data", ""),
         )
         return response("ok", {"added": True})
+    except Exception as e:
+        return response("error", None, str(e))
+
+
+def handle_update_transaction(command: dict) -> dict:
+    try:
+        params = command.get("params", {})
+        tx_id = params.get("id", "")
+        if not tx_id:
+            return response("error", None, "Missing transaction id")
+        update_transaction(
+            tx_id,
+            amount=params.get("amount"),
+            date=params.get("date"),
+            description=params.get("description"),
+            category_id=params.get("category_id"),
+            account_id=params.get("account_id"),
+            type=params.get("type"),
+        )
+        return response("ok", {"updated": True})
+    except Exception as e:
+        return response("error", None, str(e))
+
+
+def handle_delete_transaction(command: dict) -> dict:
+    try:
+        params = command.get("params", {})
+        tx_id = params.get("id", "")
+        if not tx_id:
+            return response("error", None, "Missing transaction id")
+        delete_transaction(tx_id)
+        return response("ok", {"deleted": True})
     except Exception as e:
         return response("error", None, str(e))
 
@@ -210,6 +243,8 @@ def handle_get_cash_flow(command: dict) -> dict:
 COMMANDS: dict[str, callable] = {
     "init_db": handle_init_db,
     "add_transaction": handle_add_transaction,
+    "update_transaction": handle_update_transaction,
+    "delete_transaction": handle_delete_transaction,
     "get_transactions": handle_get_transactions,
     "get_monthly_summary": handle_get_monthly_summary,
     "get_net_worth": handle_get_net_worth,

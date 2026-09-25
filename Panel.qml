@@ -31,6 +31,7 @@ Panel {
   property string projectionError: ""
   property string importStatus: ""
   property bool addFormVisible: false
+  property string editingTxId: ""
 
   property date currentDate: new Date()
   property int currentYear: currentDate.getFullYear()
@@ -132,6 +133,44 @@ Panel {
         projectionError = (result && result.error_msg) ? String(result.error_msg) : "Simulation failed"
       }
       simulationRunning = false
+    })
+  }
+
+  function editTransaction(tx) {
+    editingTxId = tx.id
+    editDescription.text = tx.description || ""
+    editAmount.value = tx.amount || 0
+    editDate.text = tx.date || ""
+    editCategory.value = tx.category_id || ""
+  }
+
+  function saveEditedTransaction() {
+    if (!editingTxId) return
+    DataStore.updateTransaction(editingTxId, {
+      description: editDescription.text,
+      amount: editAmount.value,
+      date: editDate.text,
+      category_id: editCategory.value,
+      type: editAmount.value >= 0 ? "income" : "expense"
+    }, function(result) {
+      if (result && result.status === "ok") {
+        editingTxId = ""
+        loadData()
+      } else {
+        importStatus = "Update failed: " + ((result && result.error_msg) ? result.error_msg : "unknown error")
+      }
+    })
+  }
+
+  function deleteEditedTransaction() {
+    if (!editingTxId) return
+    DataStore.deleteTransaction(editingTxId, function(result) {
+      if (result && result.status === "ok") {
+        editingTxId = ""
+        loadData()
+      } else {
+        importStatus = "Delete failed: " + ((result && result.error_msg) ? result.error_msg : "unknown error")
+      }
     })
   }
 
@@ -687,6 +726,94 @@ Repeater {
 
         Item {
           width: parent.width
+          visible: editingTxId !== ""
+          height: editingTxId !== "" ? editFormColumn.implicitHeight : 0
+
+          Column {
+            id: editFormColumn
+            width: parent.width
+            spacing: Style.space(6)
+
+            PanelSectionHeader { text: "Edit Transaction"; foreground: root.contentForeground; fontFamily: root.contentFontFamily }
+
+            TextField {
+              id: editDescription
+              width: parent.width
+              placeholderText: "Description"
+              foreground: root.contentForeground
+              accent: Color.accent
+            }
+
+            Row {
+              width: parent.width
+              spacing: Style.space(4)
+
+              NumberField {
+                id: editAmount
+                width: parent.width * 0.5
+                label: "Amount"
+                value: 0
+                from: -999999
+                to: 999999
+                stepSize: 1
+                foreground: root.contentForeground
+                accent: Color.accent
+                fontFamily: root.contentFontFamily
+                fontSize: Style.font.body
+              }
+
+              TextField {
+                id: editDate
+                width: parent.width * 0.5
+                placeholderText: "Date (YYYY-MM-DD)"
+                foreground: root.contentForeground
+                accent: Color.accent
+              }
+            }
+
+            SearchableDropdown {
+              id: editCategory
+              width: parent.width
+              value: ""
+              options: categories.map(function(c) { return {value: c.id, label: c.name} })
+              placeholderText: "Category"
+              showLabel: false
+              foreground: root.contentForeground
+              background: Color.popups.background
+              accent: Color.accent
+              fontFamily: root.contentFontFamily
+            }
+
+            Row {
+              width: parent.width
+              spacing: Style.space(4)
+
+              Button {
+                text: "Save"
+                foreground: root.contentForeground
+                fontFamily: root.contentFontFamily
+                onClicked: root.saveEditedTransaction()
+              }
+
+              Button {
+                text: "Delete"
+                foreground: "#EF4444"
+                fontFamily: root.contentFontFamily
+                onClicked: root.deleteEditedTransaction()
+              }
+
+              Button {
+                text: "Cancel"
+                foreground: root.contentForeground
+                fontFamily: root.contentFontFamily
+                onClicked: editingTxId = ""
+              }
+            }
+          }
+        }
+
+        Item {
+          width: parent.width
           height: Math.min(Style.space(300), transactionList.implicitHeight)
           clip: true
 
@@ -709,6 +836,13 @@ Repeater {
                 Item {
                   width: parent.width
                   height: Style.space(32)
+
+                  MouseArea {
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.editTransaction(modelData)
+                  }
 
                   Row {
                     width: parent.width
