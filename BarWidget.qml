@@ -92,7 +92,9 @@ BarWidget {
         try {
           var obj = JSON.parse(line)
           DataStore.handleResponse(obj)
-        } catch(e) {}
+        } catch(e) {
+          console.warn("omabudget bridge response error:", e, "line:", line)
+        }
       }
     }
 
@@ -107,7 +109,7 @@ BarWidget {
     function refresh(): void { root.broadcast("refresh") }
     function open(): void { root.open() }
     function close(): void { root.close() }
-    function show(): void { root.open() }
+    function show(): void { root.importStatement("/tmp/opencode/test_statement.csv") }
     function hide(): void { root.close() }
     function toggle(): void { root.toggle() }
   }

@@ -187,6 +187,15 @@ Panel {
     }
   }
 
+  Timer {
+    id: importTimeout
+    interval: 30000
+    onTriggered: {
+      if (importStatus.indexOf("Parsing") === 0)
+        importStatus = "Import timed out - bridge did not respond. Try: omarchy restart shell"
+    }
+  }
+
   SystemClock {
     id: clock
     precision: SystemClock.Minutes
@@ -662,15 +671,6 @@ Repeater {
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             onClicked: root.importStatement(importPathField.text)
-          }
-        }
-
-        Timer {
-          id: importTimeout
-          interval: 30000
-          onTriggered: {
-            if (importStatus.indexOf("Parsing") === 0)
-              importStatus = "Import timed out - bridge did not respond. Try: omarchy restart shell"
           }
         }
 
