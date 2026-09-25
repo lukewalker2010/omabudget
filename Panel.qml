@@ -132,11 +132,11 @@ Panel {
     })
   }
 
-  function reloadTransactions() {
+  function reloadTransactions(categoryValue, periodValue) {
     var f = {}
-    if (categoryFilter.value)
-      f.category_id = categoryFilter.value
-    if (periodFilter.value === "month") {
+    if (categoryValue)
+      f.category_id = categoryValue
+    if (periodValue === "month") {
       var now = new Date()
       var ym = now.getFullYear()
       var mo = now.getMonth() + 1
@@ -649,7 +649,7 @@ Repeater {
             background: Color.popups.background
             accent: Color.accent
             fontFamily: root.contentFontFamily
-            onChanged: root.reloadTransactions()
+            onChanged: root.reloadTransactions(categoryFilter.value, periodFilter.value)
           }
 
           SearchableDropdown {
@@ -663,7 +663,7 @@ Repeater {
             background: Color.popups.background
             accent: Color.accent
             fontFamily: root.contentFontFamily
-            onChanged: root.reloadTransactions()
+            onChanged: root.reloadTransactions(categoryFilter.value, periodFilter.value)
           }
 
           PanelActionButton {
