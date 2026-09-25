@@ -25,7 +25,7 @@ from lib.database import (
     init_db, add_transaction, get_transactions, get_monthly_spending,
     get_category_breakdown, add_category, get_categories, add_account,
     get_accounts, update_profile, get_profile, set_budget_limit,
-    update_transaction, delete_transaction
+    update_transaction, delete_transaction, delete_category
 )
 from lib.calculations import (
     calculate_monthly_budget, calculate_net_worth,
@@ -102,6 +102,31 @@ def handle_delete_transaction(command: dict) -> dict:
         if not tx_id:
             return response("error", None, "Missing transaction id")
         delete_transaction(tx_id)
+        return response("ok", {"deleted": True})
+    except Exception as e:
+        return response("error", None, str(e))
+
+
+def handle_set_budget_limit(command: dict) -> dict:
+    try:
+        params = command.get("params", {})
+        set_budget_limit(str(params.get("category_id", "")), float(params.get("limit", 0)))
+        return response("ok", {"updated": True})
+    except Exception as e:
+        return response("error", None, str(e))
+
+
+def handle_get_accounts(command: dict) -> dict:
+    try:
+        accounts = get_accounts()
+        return response("ok", {"accounts": accounts})
+    except Exception as e:
+        return response("error", None, str(e))
+
+
+def handle_delete_category(command: dict) -> dict:
+    try:
+        delete_category(str(command.get("params", {}).get("id", "")))
         return response("ok", {"deleted": True})
     except Exception as e:
         return response("error", None, str(e))
@@ -245,6 +270,9 @@ COMMANDS: dict[str, callable] = {
     "add_transaction": handle_add_transaction,
     "update_transaction": handle_update_transaction,
     "delete_transaction": handle_delete_transaction,
+    "set_budget_limit": handle_set_budget_limit,
+    "get_accounts": handle_get_accounts,
+    "delete_category": handle_delete_category,
     "get_transactions": handle_get_transactions,
     "get_monthly_summary": handle_get_monthly_summary,
     "get_net_worth": handle_get_net_worth,
@@ -276,12 +304,16 @@ def main() -> None:
 
         op = command.get("op")
         if not op:
-            emit(response("error", None, "Missing op field"))
+            err = response("error", None, "Missing op field")
+            err["id"] = command.get("id")
+            emit(err)
             continue
 
         handler = COMMANDS.get(op)
         if handler is None:
-            emit(response("error", None, f"Unknown command: {op}"))
+            err = response("error", None, f"Unknown command: {op}")
+            err["id"] = command.get("id")
+            emit(err)
             continue
 
         try:

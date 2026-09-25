@@ -10,18 +10,7 @@ BarWidget {
   id: root
   moduleName: "omabudget"
 
-  property var currentSummary: ({totalBudget: 0, totalSpent: 0, remaining: 0})
-  property var cashFlow: ({totalIncome: 0, totalExpenses: 0})
-
   function refresh() {
-    DataStore.getMonthlySummary(new Date().getFullYear(), new Date().getMonth() + 1, function(result) {
-      if (result && result.status === "ok" && result.result) {
-        currentSummary = result.result.budget
-        cashFlow = result.result.cash_flow
-        if (root.bar && root.bar.shell && typeof root.bar.shell.updateEntryInline === "function")
-          root.bar.shell.updateEntryInline(root.moduleName, {})
-      }
-    })
     if (panelLoader.item && panelLoader.item.refresh) panelLoader.item.refresh()
   }
 

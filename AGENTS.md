@@ -28,10 +28,9 @@ service dependency of any kind.
 - `lib/monte_carlo.py`: Monte Carlo retirement simulation using numpy.
 - `lib/honestmath.py`: Deterministic rate-of-return projection model.
 - `lib/statements.py`: CSV, PDF, and image statement parsing.
-- `bin/omabudget-bridge`: Python3 NDJSON bridge process. Handles all 13 commands.
+- `bin/omabudget-bridge`: Python3 NDJSON bridge process. Handles all 17 commands.
 - `migrations/`: SQL schema migration scripts.
 - `tests/`: Standalone Python tests using `assert` (no pytest dependency).
-- `qmlls/`: QML module spec for `qmllint`.
 
 Keep transport, data access, calculation logic, and UI policy separate.
 Prefer extending the existing pure JavaScript modules over adding more
@@ -105,6 +104,11 @@ JSON object on one line.
 | `get_profile` | Get financial profile value(s) by key |
 | `update_profile` | Set a financial profile key-value pair |
 | `get_cash_flow` | Return income, expenses, and savings rate for a month |
+| `update_transaction` | Update mutable fields (amount, date, description, category) of a transaction |
+| `delete_transaction` | Delete a transaction by id |
+| `set_budget_limit` | Set a category's budget limit |
+| `get_accounts` | Return all accounts |
+| `delete_category` | Delete a non-predefined category |
 
 ### NDJSON rules
 
@@ -141,8 +145,6 @@ omabudget/
 │   └── statements.py      CSV/PDF/image statement parsing
 ├── migrations/
 │   └── 001_init_schema.sql Initial database schema
-├── qmlls/
-│   └── omabudget.qmlls    QML type library definition
 ├── tests/                 Test suite (standalone, no pytest)
 │   ├── test_database.py
 │   ├── test_calculations.py

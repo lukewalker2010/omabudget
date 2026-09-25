@@ -174,6 +174,20 @@ def delete_transaction(tx_id: str) -> None:
         conn.close()
 
 
+def delete_category(category_id: str) -> None:
+    """Delete a non-predefined category by id."""
+    conn = _get_connection()
+    try:
+        cur = conn.execute(
+            "DELETE FROM categories WHERE id = ? AND is_predefined = 0", (category_id,)
+        )
+        if cur.rowcount == 0:
+            raise ValueError(f"Category not found or predefined: {category_id}")
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def get_transactions(filters: Optional[dict] = None) -> list[dict[str, Any]]:
     """Query transactions with optional filters."""
     conn = _get_connection()

@@ -23,7 +23,10 @@ function getProcess() {
 
 function _send(command, cb) {
   var proc = _process
-  if (!proc) return null
+  if (!proc) {
+    if (cb) cb({status: "error", result: null, error_msg: "Bridge process not running"})
+    return null
+  }
   var id = _nextId++
   if (cb) _callbacks[id] = cb
   var payload = {}
@@ -57,6 +60,18 @@ function updateTransaction(id, fields, cb) {
 
 function deleteTransaction(id, cb) {
   return _send({op: "delete_transaction", params: {id: id}}, cb)
+}
+
+function setBudgetLimit(categoryId, limit, cb) {
+  return _send({op: "set_budget_limit", params: {category_id: categoryId, limit: limit}}, cb)
+}
+
+function deleteCategory(id, cb) {
+  return _send({op: "delete_category", params: {id: id}}, cb)
+}
+
+function getAccounts(cb) {
+  return _send({op: "get_accounts"}, cb)
 }
 
 function getTransactions(filters, cb) {

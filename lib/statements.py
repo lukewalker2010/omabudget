@@ -14,7 +14,8 @@ import pytesseract
 def _parse_date(date_str: str) -> str:
     """Parse various date formats into ISO format YYYY-MM-DD."""
     date_str = date_str.strip()
-    for fmt in ("%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d", "%m-%d-%Y", "%d-%m-%Y"):
+    for fmt in ("%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d", "%m-%d-%Y", "%d-%m-%Y",
+                "%m/%d/%y", "%d/%m/%y", "%m-%d-%y", "%d-%m-%y"):
         try:
             return datetime.strptime(date_str, fmt).strftime("%Y-%m-%d")
         except ValueError:

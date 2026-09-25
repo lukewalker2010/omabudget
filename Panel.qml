@@ -23,6 +23,7 @@ Panel {
   readonly property var tabs: ["Overview", "Transactions", "Projections", "Settings"]
 
   property var categories: []
+  property var accounts: []
   property var transactions: []
   property var profile: ({age: 30, retirementAge: 65, householdSize: 1, income: 75000, houseValue: 300000})
   property var portfolio: ({cash: 0.1, bonds: 0.2, stocks: 0.7})
@@ -76,21 +77,75 @@ Panel {
   }
 
   function loadData() {
+    var now = new Date()
     DataStore.getCategories(function(result) {
       if (result && result.status === "ok" && result.result && result.result.categories)
         categories = result.result.categories
     })
-    DataStore.getTransactions({}, function(result) {
-      if (result && result.status === "ok" && result.result && result.result.transactions)
-        transactions = result.result.transactions
+    reloadTransactions()
+    DataStore.getAccounts(function(result) {
+      if (result && result.status === "ok" && result.result && result.result.accounts)
+        accounts = result.result.accounts
+    })
+    DataStore.getProfile(null, function(result) {
+      if (result && result.status === "ok" && result.result && result.result.profile) {
+        var pr = result.result.profile
+        profile = {
+          age: Number(pr.age) || 30,
+          retirementAge: Number(pr.retirement_age) || 65,
+          householdSize: Number(pr.household_size) || 1,
+          income: Number(pr.income) || 0,
+          houseValue: Number(pr.house_value) || 0
+        }
+      }
     })
     DataStore.getNetWorth(function(result) {
       if (result && result.status === "ok" && result.result)
         netWorthData = result.result
     })
-    DataStore.getCashFlow(new Date().getFullYear(), new Date().getMonth() + 1, function(result) {
-      if (result && result.status === "ok" && result.result)
-        cashFlowData = result.result
+    var year = now.getFullYear()
+    var month = now.getMonth() + 1
+    DataStore.getMonthlySummary(year, month, function(result) {
+      if (result && result.status === "ok" && result.result) {
+        var r = result.result
+        var byCategory = {}
+        var progress = r.category_progress || []
+        for (var i = 0; i < progress.length; i++)
+          byCategory[progress[i].category_id] = { spent: progress[i].spent || 0, budget: progress[i].budget || 0 }
+        currentSummary = {
+          totalBudget: r.budget ? (r.budget.total_budget || 0) : 0,
+          totalSpent: r.budget ? (r.budget.total_spent || 0) : 0,
+          remaining: r.budget ? (r.budget.remaining || 0) : 0,
+          byCategory: byCategory
+        }
+      }
+    })
+    DataStore.getCashFlow(year, month, function(result) {
+      if (result && result.status === "ok" && result.result) {
+        var cf = result.result
+        cashFlowData = {
+          totalIncome: cf.total_income || 0,
+          totalExpenses: cf.total_expenses || 0,
+          savingsRate: cf.savings_rate || 0
+        }
+      }
+    })
+  }
+
+  function reloadTransactions() {
+    var f = {}
+    if (categoryFilter.value)
+      f.category_id = categoryFilter.value
+    if (periodFilter.value === "month") {
+      var now = new Date()
+      var ym = now.getFullYear()
+      var mo = now.getMonth() + 1
+      f.start_date = ym + "-" + (mo < 10 ? "0" + mo : mo) + "-01"
+      f.end_date = ym + "-" + (mo < 10 ? "0" + mo : mo) + "-31"
+    }
+    DataStore.getTransactions(f, function(result) {
+      if (result && result.status === "ok" && result.result && result.result.transactions)
+        transactions = result.result.transactions
     })
   }
 
@@ -104,15 +159,15 @@ Panel {
     })
   }
 
-  function runSimulation() {
+  function runSimulation(ageVal, retireVal, incomeVal, houseVal) {
     simulationRunning = true
     projectionError = ""
     var p = {
-      age: Number(profileAge.value) || 30,
-      retirement_age: Number(profileRetirementAge.value) || 65,
+      age: Number(ageVal) || 30,
+      retirement_age: Number(retireVal) || 65,
       household_size: 1,
-      income: Number(profileIncome.value) || 0,
-      house_value: Number(profileHouseValue.value) || 0
+      income: Number(incomeVal) || 0,
+      house_value: Number(houseVal) || 0
     }
     var alloc = {
       cash: Number(portfolio.cash) || 0,
@@ -136,22 +191,23 @@ Panel {
     })
   }
 
-  function editTransaction(tx) {
+  function editTransaction(tx, descField, amountField, dateField, categoryField) {
     editingTxId = tx.id
-    editDescription.text = tx.description || ""
-    editAmount.value = tx.amount || 0
-    editDate.text = tx.date || ""
-    editCategory.value = tx.category_id || ""
+    descField.text = tx.description || ""
+    amountField.text = String(tx.amount || 0)
+    dateField.text = tx.date || ""
+    categoryField.value = tx.category_id || ""
   }
 
-  function saveEditedTransaction() {
+  function saveEditedTransaction(descField, amountField, dateField, categoryField) {
     if (!editingTxId) return
+    var amt = parseFloat(amountField.text) || 0
     DataStore.updateTransaction(editingTxId, {
-      description: editDescription.text,
-      amount: editAmount.value,
-      date: editDate.text,
-      category_id: editCategory.value,
-      type: editAmount.value >= 0 ? "income" : "expense"
+      description: descField.text,
+      amount: amt,
+      date: dateField.text,
+      category_id: categoryField.value,
+      type: amt >= 0 ? "income" : "expense"
     }, function(result) {
       if (result && result.status === "ok") {
         editingTxId = ""
@@ -172,6 +228,33 @@ Panel {
         importStatus = "Delete failed: " + ((result && result.error_msg) ? result.error_msg : "unknown error")
       }
     })
+  }
+
+  function saveProfile(ageVal, retireVal, incomeVal, houseVal) {
+    var entries = {
+      age: String(Number(ageVal) || 30),
+      retirement_age: String(Number(retireVal) || 65),
+      household_size: "1",
+      income: String(Number(incomeVal) || 0),
+      house_value: String(Number(houseVal) || 0)
+    }
+    var keys = Object.keys(entries)
+    var done = 0
+    for (var i = 0; i < keys.length; i++) {
+      DataStore.updateProfile(keys[i], entries[keys[i]], function() {
+        done++
+        if (done === keys.length) {
+          projectionError = ""
+          profile = {
+            age: Number(ageVal) || 30,
+            retirementAge: Number(retireVal) || 65,
+            householdSize: 1,
+            income: Number(incomeVal) || 0,
+            houseValue: Number(houseVal) || 0
+          }
+        }
+      })
+    }
   }
 
   function importStatement(path) {
@@ -247,11 +330,6 @@ Panel {
 
   readonly property int barIndicatorHeight: Math.max(Style.space(10), Math.round(Style.bar.iconSlot * 0.55))
 
-  readonly property bool popoutSwitchClosing: false
-
-  function closeForPopoutSwitch() {
-    close()
-  }
 
   KeyboardPanel {
     id: panel
@@ -530,7 +608,7 @@ Repeater {
                 color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.12)
 
                 Rectangle {
-                  width: Math.min(parent.width, parent.width * Math.min(1, ((currentSummary.byCategory && currentSummary.byCategory[modelData.id] ? currentSummary.byCategory[modelData.id].spent : 0) / modelData.budget_limit) || 0))
+                  width: Math.min(parent.width, parent.width * Math.min(1, ((currentSummary.byCategory && currentSummary.byCategory[modelData.id] ? currentSummary.byCategory[modelData.id].spent : 0) / (modelData.budget_limit || 1)) || 0))
                   height: parent.height
                   radius: parent.radius
                   color: Style.selectedStateColor(root.contentForeground, Color.accent)
@@ -571,9 +649,11 @@ Repeater {
             background: Color.popups.background
             accent: Color.accent
             fontFamily: root.contentFontFamily
+            onChanged: root.reloadTransactions()
           }
 
           SearchableDropdown {
+            id: periodFilter
             width: Style.spacing.dropdownWidth
             value: "all"
             options: [{value: "all", label: "All Time"}, {value: "month", label: "This Month"}]
@@ -583,6 +663,7 @@ Repeater {
             background: Color.popups.background
             accent: Color.accent
             fontFamily: root.contentFontFamily
+            onChanged: root.reloadTransactions()
           }
 
           PanelActionButton {
@@ -614,18 +695,13 @@ Repeater {
               accent: Color.accent
             }
 
-            NumberField {
+            TextField {
               id: txAmount
               width: parent.width
-              label: "Amount"
-              value: 0
-              from: -999999
-              to: 999999
-              stepSize: 1
+              placeholderText: "Amount (negative for expense, e.g. -45.67)"
               foreground: root.contentForeground
               accent: Color.accent
-              fontFamily: root.contentFontFamily
-              fontSize: Style.font.body
+              inputMethodHints: Qt.ImhFormattedNumbersOnly
             }
 
             Row {
@@ -663,12 +739,13 @@ Repeater {
                 fontFamily: root.contentFontFamily
                 enabled: true
                 onClicked: {
-                  var type = txAmount.value >= 0 ? "income" : "expense"
+                  var amt = parseFloat(txAmount.text) || 0
+                  var type = amt >= 0 ? "income" : "expense"
                   DataStore.addTransaction({
                     id: "tx_" + Date.now(),
                     category_id: txCategory.value,
                     account_id: "",
-                    amount: txAmount.value,
+                    amount: amt,
                     date: txDate.text || new Date().toISOString().split("T")[0],
                     description: txDescription.text,
                     type: type
@@ -748,18 +825,13 @@ Repeater {
               width: parent.width
               spacing: Style.space(4)
 
-              NumberField {
+              TextField {
                 id: editAmount
                 width: parent.width * 0.5
-                label: "Amount"
-                value: 0
-                from: -999999
-                to: 999999
-                stepSize: 1
+                placeholderText: "Amount"
                 foreground: root.contentForeground
                 accent: Color.accent
-                fontFamily: root.contentFontFamily
-                fontSize: Style.font.body
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
               }
 
               TextField {
@@ -792,7 +864,7 @@ Repeater {
                 text: "Save"
                 foreground: root.contentForeground
                 fontFamily: root.contentFontFamily
-                onClicked: root.saveEditedTransaction()
+                onClicked: root.saveEditedTransaction(editDescription, editAmount, editDate, editCategory)
               }
 
               Button {
@@ -841,7 +913,7 @@ Repeater {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: root.editTransaction(modelData)
+                    onClicked: root.editTransaction(modelData, editDescription, editAmount, editDate, editCategory)
                   }
 
                   Row {
@@ -1034,12 +1106,24 @@ Repeater {
 
         PanelSeparator { foreground: root.contentForeground }
 
-        Button {
-          text: "Run Simulation"
-          foreground: root.contentForeground
-          fontFamily: root.contentFontFamily
-          enabled: !simulationRunning
-          onClicked: root.runSimulation()
+        Row {
+          width: parent.width
+          spacing: Style.space(4)
+
+          Button {
+            text: "Save Profile"
+            foreground: root.contentForeground
+            fontFamily: root.contentFontFamily
+            onClicked: root.saveProfile(profileAge.value, profileRetirementAge.value, profileIncome.value, profileHouseValue.value)
+          }
+
+          Button {
+            text: "Run Simulation"
+            foreground: root.contentForeground
+            fontFamily: root.contentFontFamily
+            enabled: !simulationRunning
+            onClicked: root.runSimulation(profileAge.value, profileRetirementAge.value, profileIncome.value, profileHouseValue.value)
+          }
         }
 
         Text {
@@ -1055,10 +1139,11 @@ Repeater {
 
         Item {
           width: parent.width
-          height: projectionResult.probabilityOfSuccess > 0 ? Style.space(80) : 0
+          height: projectionResult.probabilityOfSuccess > 0 ? resultsColumn.implicitHeight : 0
           visible: projectionResult.probabilityOfSuccess > 0
 
           Column {
+            id: resultsColumn
             width: parent.width
             spacing: Style.space(4)
 
@@ -1213,7 +1298,7 @@ Repeater {
                 foreground: root.contentForeground
                 fontFamily: root.contentFontFamily
                 fontSize: Style.font.icon
-                onClicked: DataStore.updateProfile("cat_budget_" + modelData.id, String((modelData.budget_limit || 0) + 100), function() {})
+                onClicked: DataStore.setBudgetLimit(modelData.id, (modelData.budget_limit || 0) + 100, function() { loadData() })
               }
 
               PanelActionButton {
@@ -1222,7 +1307,7 @@ Repeater {
                 foreground: root.contentForeground
                 fontFamily: root.contentFontFamily
                 fontSize: Style.font.icon
-                onClicked: DataStore.updateProfile("cat_budget_" + modelData.id, String(Math.max(0, (modelData.budget_limit || 0) - 100)), function() {})
+                onClicked: DataStore.setBudgetLimit(modelData.id, Math.max(0, (modelData.budget_limit || 0) - 100), function() { loadData() })
               }
 
               PanelActionButton {
@@ -1230,6 +1315,7 @@ Repeater {
                 tooltipText: "Remove category"
                 foreground: root.contentForeground
                 fontFamily: root.contentFontFamily
+                onClicked: DataStore.deleteCategory(modelData.id, function() { loadData() })
                 fontSize: Style.font.icon
                 visible: !modelData.is_predefined
               }
@@ -1286,7 +1372,7 @@ Repeater {
 
         Repeater {
           id: accountList
-          model: []
+          model: accounts
 
 
           Item {
