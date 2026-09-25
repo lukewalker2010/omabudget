@@ -251,9 +251,13 @@ def main() -> None:
 
         try:
             result = handler(command)
+            if isinstance(result, dict):
+                result["id"] = command.get("id")
             emit(result)
         except Exception as e:
-            emit(response("error", None, str(e)))
+            err = response("error", None, str(e))
+            err["id"] = command.get("id")
+            emit(err)
 
 
 if __name__ == "__main__":

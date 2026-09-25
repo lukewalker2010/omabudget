@@ -29,13 +29,11 @@ function _send(command, cb) {
   var payload = {}
   for (var key in command) payload[key] = command[key]
   payload.id = id
-  console.log("DBG _send op:", command.op, "id:", id)
   proc.write(JSON.stringify(payload) + "\n")
   return id
 }
 
 function handleResponse(obj) {
-  console.log("DBG handleResponse id:", obj.id, "status:", obj.status)
   var id = obj.id
   if (id && _callbacks[id]) {
     _callbacks[id](obj)
