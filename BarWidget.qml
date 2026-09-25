@@ -42,6 +42,7 @@ BarWidget {
   }
 
   function toggle() {
+    console.log("toggle called, panel item:", panelLoader.item, "opened:", panelLoader.item ? panelLoader.item.opened : "n/a")
     if (panelLoader.item) panelLoader.item.toggle()
   }
 
