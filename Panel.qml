@@ -136,6 +136,7 @@ Panel {
   }
 
   function importStatement(path) {
+    console.log("DBG importStatement called:", path)
     var p = String(path || "").trim()
     if (!p) {
       importStatus = "Enter a file path first"
@@ -144,8 +145,10 @@ Panel {
     var lower = p.toLowerCase()
     var ftype = lower.endsWith(".csv") ? "csv" : lower.endsWith(".pdf") ? "pdf" : "image"
     importStatus = "Parsing " + p + "..."
+    console.log("DBG sending parse_statement, ftype:", ftype)
     importTimeout.restart()
     DataStore.parseStatement(p, ftype, function(result) {
+      console.log("DBG parse callback:", JSON.stringify(result).substring(0, 120))
       importTimeout.stop()
       if (!result || result.status !== "ok" || !result.result) {
         importStatus = "Import failed: " + ((result && result.error_msg) ? result.error_msg : "unknown error")

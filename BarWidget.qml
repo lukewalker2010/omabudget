@@ -109,7 +109,10 @@ BarWidget {
     function refresh(): void { root.broadcast("refresh") }
     function open(): void { root.open() }
     function close(): void { root.close() }
-    function show(): void { root.importStatement("/tmp/opencode/test_statement.csv") }
+    function show(): void {
+      if (panelLoader.item && panelLoader.item.importStatement)
+        panelLoader.item.importStatement("/tmp/opencode/test_statement.csv")
+    }
     function hide(): void { root.close() }
     function toggle(): void { root.toggle() }
   }
