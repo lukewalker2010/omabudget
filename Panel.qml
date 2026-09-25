@@ -207,7 +207,9 @@ Repeater {
 
     Item {
       width: parent.width
+      height: tabContent.implicitHeight
       Column {
+        id: tabContent
         width: parent.width
         spacing: Style.space(8)
 
@@ -410,7 +412,9 @@ Repeater {
 
     Item {
       width: parent.width
+      height: tabContent.implicitHeight
       Column {
+        id: tabContent
         width: parent.width
         spacing: Style.space(8)
 
@@ -598,7 +602,9 @@ Repeater {
 
     Item {
       width: parent.width
+      height: tabContent.implicitHeight
       Column {
+        id: tabContent
         width: parent.width
         spacing: Style.space(8)
 
@@ -902,7 +908,9 @@ Repeater {
 
     Item {
       width: parent.width
+      height: tabContent.implicitHeight
       Column {
+        id: tabContent
         width: parent.width
         spacing: Style.space(8)
 
