@@ -38,8 +38,6 @@ Panel {
   property var cashFlowData: ({totalIncome: 0, totalExpenses: 0, savingsRate: 0})
   property var netWorthData: ({totalAssets: 0, totalLiabilities: 0, net_worth: 0})
 
-  readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
-
   function open() {
     root.controller.show()
     Qt.callLater(function() { if (root.opened) setCenterHoverRevealSuppressed(true) })
@@ -100,18 +98,6 @@ Panel {
       portfolio.stocks = Math.max(0, portfolio.stocks + diff)
     }
   }
-
-  function injectPanel() {
-    var target = panelLoader.item
-    if (!target) return
-    if ("bar" in target) target.bar = root.bar
-    if ("settings" in target) target.settings = root.settings
-    if ("anchorItem" in target) target.anchorItem = button
-    if ("hostWidget" in target) target.hostWidget = root
-  }
-
-  onBarChanged: injectPanel()
-  onSettingsChanged: injectPanel()
 
   SystemClock {
     id: clock
