@@ -10,12 +10,6 @@ BarWidget {
   id: root
   moduleName: "omabudget"
 
-  Component.onCompleted: console.log("BarWidget completed:", moduleName, "bar:", bar)
-  onBarChanged: {
-    console.log("BarWidget onBarChanged:", bar)
-    injectPanel()
-  }
-
   property var currentSummary: ({totalBudget: 0, totalSpent: 0, remaining: 0})
   property var cashFlow: ({totalIncome: 0, totalExpenses: 0})
 
@@ -42,7 +36,6 @@ BarWidget {
   }
 
   function toggle() {
-    console.log("toggle called, panel item:", panelLoader.item, "opened:", panelLoader.item ? panelLoader.item.opened : "n/a")
     if (panelLoader.item) panelLoader.item.toggle()
   }
 
@@ -130,8 +123,6 @@ BarWidget {
     pressable: true
     horizontalMargin: 8.75
     verticalPadding: 8.75
-    Component.onCompleted: console.log("WidgetButton bar:", bar, "pressable:", pressable, "interactive:", interactive)
-    onBarChanged: console.log("WidgetButton onBarChanged:", bar)
   }
 
   Connections {
