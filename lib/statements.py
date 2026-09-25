@@ -23,6 +23,25 @@ def _parse_date(date_str: str) -> str:
     return date_str
 
 
+def _resolve_partial_date(date_str: str) -> str:
+    """Resolve a month/day date (no year) to ISO, assuming the nearest past occurrence.
+
+    Uses the current year; if that lands in the future, assumes the previous
+    year (e.g. a January statement listing December activity).
+    """
+    iso = _parse_date(date_str)
+    if iso != date_str.strip():
+        return iso
+    now = datetime.now()
+    try:
+        candidate = datetime.strptime(f"{date_str}/{now.year}", "%m/%d/%Y")
+    except ValueError:
+        return date_str
+    if candidate.date() > now.date():
+        candidate = candidate.replace(year=now.year - 1)
+    return candidate.strftime("%Y-%m-%d")
+
+
 def _parse_amount(amount_str: str) -> float:
     """Parse amount string to float, handling parentheses and trailing minus for negatives."""
     amount_str = amount_str.strip().replace(",", "").replace("$", "").replace(" ", "")
@@ -36,13 +55,63 @@ def _parse_amount(amount_str: str) -> float:
         return 0.0
 
 
+# Description keywords -> category id hints (validated against DB ids by the bridge).
+_CATEGORY_HINTS = [
+    ("grocery", "food"), ("safeway", "food"), ("kroger", "food"), ("trader joe", "food"),
+    ("restaurant", "food"), ("cafe", "food"), ("coffee", "food"), ("doordash", "food"),
+    ("uber eats", "food"), ("grubhub", "food"), ("pizza", "food"),
+    ("electric", "utilities"), ("water bill", "utilities"), ("utility", "utilities"),
+    ("internet", "utilities"), ("comcast", "utilities"), ("xfinity", "utilities"),
+    ("verizon", "utilities"), ("t-mobile", "utilities"), ("at&t", "utilities"),
+    ("rent", "housing"), ("mortgage", "housing"), ("hoa ", "housing"),
+    ("gas station", "transport"), ("chevron", "transport"), ("shell oil", "transport"),
+    ("uber", "transport"), ("lyft", "transport"), ("parking", "transport"),
+    ("transit", "transport"), ("toll", "transport"),
+    ("netflix", "subscriptions"), ("spotify", "subscriptions"), ("hulu", "subscriptions"),
+    ("subscription", "subscriptions"), ("prime video", "subscriptions"),
+    ("pharmacy", "healthcare"), ("cvs", "healthcare"), ("walgreens", "healthcare"),
+    ("clinic", "healthcare"), ("dental", "healthcare"), ("hospital", "healthcare"),
+    ("amazon", "shopping"), ("target", "shopping"), ("walmart", "shopping"),
+    ("costco", "shopping"), ("ebay", "shopping"), ("etsy", "shopping"),
+    ("steam", "entertainment"), ("cinema", "entertainment"), ("theater", "entertainment"),
+    ("hulu live", "entertainment"), ("gamestop", "entertainment"),
+    ("credit card pmt", "debt"), ("loan payment", "debt"), ("student loan", "debt"),
+    ("atm withdrawal", "transport"),
+]
+
+_EXPENSE_KEYWORDS = ("withdrawal", "debit", "purchase", "payment", "check", "pos ", "bill pay")
+_INCOME_KEYWORDS = ("income", "salary", "deposit", "refund", "payroll", "transfer in",
+                    "interest earned", "dividend", "cashback")
+
+
+def guess_category(description: str) -> str:
+    """Best-effort category id from description keywords. Returns '' when unsure."""
+    d = " " + description.lower() + " "
+    for keyword, category_id in _CATEGORY_HINTS:
+        if keyword in d:
+            return category_id
+    return ""
+
+
+def normalize_amount(description: str, amount: float) -> float:
+    """Force sign consistency: expenses negative, income positive."""
+    tx_type = _infer_type(description, amount)
+    if tx_type == "expense" and amount > 0:
+        return -amount
+    if tx_type == "income" and amount < 0:
+        return -amount
+    return amount
+
+
 def _infer_type(description: str, amount: float) -> str:
     """Infer transaction type from description and amount."""
-    desc_lower = description.lower()
+    desc_lower = " " + description.lower() + " "
+    if any(kw in desc_lower for kw in _INCOME_KEYWORDS):
+        return "income"
+    if any(kw in desc_lower for kw in _EXPENSE_KEYWORDS):
+        return "expense"
     if amount < 0:
         return "expense"
-    if any(kw in desc_lower for kw in ("income", "salary", "deposit", "refund", "payroll", "transfer in")):
-        return "income"
     return "expense"
 
 
@@ -108,8 +177,18 @@ def parse_pdf(filepath: str) -> list[dict[str, Any]]:
     """
     transactions = []
     reader = PdfReader(filepath)
+
+    def _extract(page) -> str:
+        try:
+            text = page.extract_text(extraction_mode="layout")
+            if text and _DATE_RE.search(text):
+                return text
+        except Exception:
+            pass
+        return page.extract_text() or ""
+
     for page in reader.pages:
-        text = page.extract_text()
+        text = _extract(page)
         if not text:
             continue
         for line in text.split("\n"):
@@ -118,16 +197,26 @@ def parse_pdf(filepath: str) -> list[dict[str, Any]]:
                 continue
             date_match = _DATE_RE.search(line)
             if not date_match:
+                # Continuation of a wrapped description: fold into previous row.
+                if transactions and len(line) > 2 and not line.startswith("("):
+                    prev = transactions[-1]
+                    if len(prev["description"]) < 80:
+                        prev["description"] = (prev["description"] + " " + line).strip()
                 continue
             rest = line[date_match.end():]
             amounts = _AMOUNT_RE.findall(rest)
             if not amounts:
+                if transactions and len(line) > 2 and not line.startswith("("):
+                    prev = transactions[-1]
+                    if len(prev["description"]) < 80:
+                        prev["description"] = (prev["description"] + " " + line).strip()
                 continue
             amount = _parse_amount(amounts[-1])
             description = rest[:rest.rfind(amounts[-1])].strip(" -$|")
             if not description:
                 continue
-            date = _parse_date(date_match.group(0))
+            date = _resolve_partial_date(date_match.group(0))
+            amount = normalize_amount(description, amount)
             tx_type = _infer_type(description, amount)
             transactions.append({
                 "date": date,
@@ -160,6 +249,7 @@ def parse_image(filepath: str) -> list[dict[str, Any]]:
             date = _parse_date(date_match.group(0))
             amount = _parse_amount(amount_match.group(0))
             description = line[:line.rfind(amount_match.group(0))].strip()
+            amount = normalize_amount(description, amount)
             tx_type = _infer_type(description, amount)
             transactions.append({
                 "date": date,

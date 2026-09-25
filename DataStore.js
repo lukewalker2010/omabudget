@@ -114,11 +114,3 @@ function getCashFlow(year, month, cb) {
   return _send({op: "get_cash_flow", params: {year: year, month: month}}, cb)
 }
 
-function ensureStarted(proc) {
-  if (_process) return true
-  if (proc) {
-    setProcess(proc)
-    return true
-  }
-  return false
-}

@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import Quickshell
+import Quickshell.Io
 import qs.Commons
 import qs.Ui
 import "Model.js" as Model
@@ -31,6 +32,8 @@ Panel {
   property bool simulationRunning: false
   property string projectionError: ""
   property string importStatus: ""
+  property var pendingImport: []
+  property int skippedDuplicates: 0
   property bool addFormVisible: false
   property string editingTxId: ""
 
@@ -257,15 +260,17 @@ Panel {
     }
   }
 
-  function importStatement(path) {
+  function previewStatement(path) {
     var p = String(path || "").trim()
     if (!p) {
-      importStatus = "Enter a file path first"
+      importStatus = "Select or enter a file path first"
       return
     }
     var lower = p.toLowerCase()
     var ftype = lower.endsWith(".csv") ? "csv" : lower.endsWith(".pdf") ? "pdf" : "image"
     importStatus = "Parsing " + p + "..."
+    pendingImport = []
+    skippedDuplicates = 0
     importTimeout.restart()
     DataStore.parseStatement(p, ftype, function(result) {
       importTimeout.stop()
@@ -278,24 +283,57 @@ Panel {
         importStatus = "No transactions found in file"
         return
       }
-      var imported = 0
-      parsed.forEach(function(t, i) {
-        DataStore.addTransaction({
-          id: "tx_" + Date.now() + "_" + i,
-          category_id: "",
-          account_id: "",
-          amount: t.amount,
-          date: t.date || "",
-          description: t.description || "",
-          type: t.type || "expense",
-          source: t.source || "statement"
-        }, function(addResult) {
-          if (addResult && addResult.status === "ok") imported++
-          if (i === parsed.length - 1) {
-            importStatus = "Imported " + imported + " of " + parsed.length + " transactions"
-            loadData()
+      DataStore.getTransactions({}, function(existing) {
+        var known = {}
+        if (existing && existing.status === "ok" && existing.result && existing.result.transactions) {
+          var txs = existing.result.transactions
+          for (var i = 0; i < txs.length; i++)
+            known[(txs[i].date || "") + "|" + (txs[i].description || "") + "|" + (txs[i].amount || 0)] = true
+        }
+        var fresh = []
+        var skipped = 0
+        for (var j = 0; j < parsed.length; j++) {
+          var t = parsed[j]
+          var key = (t.date || "") + "|" + (t.description || "") + "|" + (t.amount || 0)
+          if (known[key]) {
+            skipped++
+          } else {
+            fresh.push(t)
           }
-        })
+        }
+        skippedDuplicates = skipped
+        pendingImport = fresh
+        if (!fresh.length)
+          importStatus = "All " + parsed.length + " parsed transactions already exist - nothing to import"
+        else
+          importStatus = ""
+      })
+    })
+  }
+
+  function commitImport() {
+    if (!pendingImport || !pendingImport.length) return
+    var batch = pendingImport
+    var imported = 0
+    batch.forEach(function(t, i) {
+      DataStore.addTransaction({
+        id: "tx_" + Date.now() + "_" + i,
+        category_id: "",
+        account_id: "",
+        amount: t.amount,
+        date: t.date || "",
+        description: t.description || "",
+        type: t.type || "expense",
+        source: t.source || "statement"
+      }, function(addResult) {
+        if (addResult && addResult.status === "ok") imported++
+        if (i === batch.length - 1) {
+          importStatus = "Imported " + imported + " of " + batch.length + " transactions" +
+            (skippedDuplicates ? " (" + skippedDuplicates + " duplicates skipped)" : "")
+          pendingImport = []
+          skippedDuplicates = 0
+          loadData()
+        }
       })
     })
   }
@@ -328,7 +366,6 @@ Panel {
     }
   }
 
-  readonly property int barIndicatorHeight: Math.max(Style.space(10), Math.round(Style.bar.iconSlot * 0.55))
 
 
   KeyboardPanel {
@@ -768,6 +805,17 @@ Repeater {
           }
         }
 
+        Process {
+          id: filePicker
+          command: ["zenity", "--file-selection", "--title", "Select statement file"]
+          stdout: StdioCollector {
+            onStreamFinished: {
+              var picked = text ? String(text).trim() : ""
+              if (picked) importPathField.text = picked
+            }
+          }
+        }
+
         PanelSeparator { foreground: root.contentForeground }
 
         Row {
@@ -776,17 +824,24 @@ Repeater {
 
           TextField {
             id: importPathField
-            width: parent.width - Style.space(90)
-            placeholderText: "Path to statement file (.csv, .pdf, or image)"
+            width: parent.width - Style.space(220)
+            placeholderText: "Statement file (.csv, .pdf, or image)"
             foreground: root.contentForeground
             accent: Color.accent
           }
 
           Button {
-            text: "Import"
+            text: "Browse"
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
-            onClicked: root.importStatement(importPathField.text)
+            onClicked: filePicker.running = true
+          }
+
+          Button {
+            text: "Preview"
+            foreground: root.contentForeground
+            fontFamily: root.contentFontFamily
+            onClicked: root.previewStatement(importPathField.text)
           }
         }
 
@@ -879,6 +934,70 @@ Repeater {
                 foreground: root.contentForeground
                 fontFamily: root.contentFontFamily
                 onClicked: editingTxId = ""
+              }
+            }
+          }
+        }
+
+        Item {
+          width: parent.width
+          visible: pendingImport.length > 0
+          height: pendingImport.length > 0 ? previewColumn.implicitHeight : 0
+
+          Column {
+            id: previewColumn
+            width: parent.width
+            spacing: Style.space(4)
+
+            Text {
+              width: parent.width
+              textFormat: Text.PlainText
+              text: pendingImport.length + " new transaction" + (pendingImport.length === 1 ? "" : "s") + " found" +
+                (skippedDuplicates ? " - " + skippedDuplicates + " duplicate" + (skippedDuplicates === 1 ? "" : "s") + " skipped" : "")
+              color: root.contentForeground
+              font.family: root.contentFontFamily
+              font.pixelSize: Style.font.bodySmall
+              font.bold: true
+            }
+
+            Repeater {
+              model: pendingImport
+
+              Item {
+                width: parent.width
+                height: Style.space(24)
+                clip: true
+
+                Row {
+                  width: parent.width
+                  spacing: Style.space(4)
+
+                  Text { textFormat: Text.PlainText; text: modelData.date || "?"; color: Qt.darker(root.contentForeground, 1.4); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; width: Style.space(90); elide: Text.ElideRight }
+                  Text { textFormat: Text.PlainText; text: modelData.description || ""; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; width: parent.width - Style.space(200); elide: Text.ElideRight }
+                  Text { textFormat: Text.PlainText; text: Model.formatCurrency(modelData.amount || 0); color: modelData.type === "income" ? "#10B981" : "#EF4444"; font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; font.bold: true }
+                }
+              }
+            }
+
+            Row {
+              width: parent.width
+              spacing: Style.space(4)
+
+              Button {
+                text: "Import " + pendingImport.length
+                foreground: root.contentForeground
+                fontFamily: root.contentFontFamily
+                onClicked: root.commitImport()
+              }
+
+              Button {
+                text: "Discard"
+                foreground: root.contentForeground
+                fontFamily: root.contentFontFamily
+                onClicked: {
+                  pendingImport = []
+                  skippedDuplicates = 0
+                }
               }
             }
           }

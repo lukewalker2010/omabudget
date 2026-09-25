@@ -32,7 +32,7 @@ from lib.calculations import (
     calculate_monthly_cash_flow, calculate_category_progress
 )
 from lib.monte_carlo import run_simulation, calculate_projection
-from lib.statements import parse_csv, parse_pdf, parse_image
+from lib.statements import parse_csv, parse_pdf, parse_image, guess_category
 from lib.honestmath import get_rate_of_return, calculate_projection as hp_calc
 
 
@@ -200,6 +200,11 @@ def handle_parse_statement(command: dict) -> dict:
         else:
             return response("error", None, f"Unknown file type: {file_type}")
 
+        known_ids = {c["id"] for c in get_categories()}
+        for tx in transactions:
+            guess = guess_category(tx.get("description", ""))
+            if guess in known_ids:
+                tx["category_id"] = guess
         return response("ok", {"transactions": transactions})
     except Exception as e:
         return response("error", None, str(e))
