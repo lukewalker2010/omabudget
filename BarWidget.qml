@@ -70,7 +70,6 @@ BarWidget {
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
 
-  onBarChanged: injectPanel()
   onSettingsChanged: injectPanel()
 
   Loader {
